@@ -402,7 +402,18 @@ class LdapUtils:
             Contexte de dénomination par défaut
         """
         root_dse = LdapUtils.get_root_dse(domain_name)
-        return root_dse.get('defaultNamingContext', [b''])[0].decode('utf-8')
+        
+        # Try different case variations
+        for key in ['defaultNamingContext', 'DefaultNamingContext', 'defaultnamingcontext']:
+            if key in root_dse and root_dse[key]:
+                value = root_dse[key][0]
+                if isinstance(value, bytes):
+                    return value.decode('utf-8')
+                return str(value)
+        
+        # Fallback: construct from domain name
+        logger.warning(f"defaultNamingContext not found in RootDSE, constructing from domain name")
+        return ','.join([f'DC={part}' for part in domain_name.split('.')])
     
     @staticmethod
     def _get_config_naming_context(domain_name: str) -> str:
@@ -416,7 +427,19 @@ class LdapUtils:
             Contexte de dénomination de configuration
         """
         root_dse = LdapUtils.get_root_dse(domain_name)
-        return root_dse.get('configurationNamingContext', [b''])[0].decode('utf-8')
+        
+        # Try different case variations
+        for key in ['configurationNamingContext', 'ConfigurationNamingContext', 'configurationnamingcontext']:
+            if key in root_dse and root_dse[key]:
+                value = root_dse[key][0]
+                if isinstance(value, bytes):
+                    return value.decode('utf-8')
+                return str(value)
+        
+        # Fallback: construct from domain name
+        logger.warning(f"configurationNamingContext not found in RootDSE, constructing from domain name")
+        dc_parts = ','.join([f'DC={part}' for part in domain_name.split('.')])
+        return f'CN=Configuration,{dc_parts}'
     
     @staticmethod
     def _perform_ldap3_search(conn, search_base: str, ldap_filter: str, attributes: List[str]) -> List[Dict[str, Any]]:
