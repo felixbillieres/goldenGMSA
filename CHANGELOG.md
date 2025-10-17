@@ -2,7 +2,7 @@
 
 ## [1.1.0] - 2025-10-17
 
-### ✨ Nouvelles fonctionnalités
+### Nouvelles fonctionnalités
 
 #### Authentification LDAP depuis Linux
 - **Classe `LdapConnection`** : Gestion complète des connexions LDAP authentifiées
@@ -28,7 +28,7 @@
 - **README.md** mis à jour avec instructions d'authentification
 - Support des scénarios d'utilisation programmatique en Python
 
-### 🔧 Améliorations techniques
+### Améliorations techniques
 
 #### Module `ldap_utils.py`
 - Nouvelle classe `LdapConnection` avec context manager
@@ -48,7 +48,7 @@
 - Timeout de connexion configuré (10 secondes)
 - Masquage des mots de passe dans les logs
 
-### 📝 Exemples d'utilisation
+### Exemples d'utilisation
 
 ```bash
 # Énumération avec authentification
@@ -64,12 +64,12 @@ python main.py -u 'user@domain.local' -p 'password' --domain domain.local --use-
 python main.py -u 'user@domain.local' -p 'password' --domain domain.local compute --sid <SID>
 ```
 
-### 🎯 Cas d'usage
+### Cas d'usage
 
 L'outil permet maintenant d'exploiter GoldenGMSA **directement depuis un host Linux** ayant :
-- ✅ Accès réseau au contrôleur de domaine
-- ✅ Credentials valides (utilisateur standard ou privilégié)
-- ✅ Connectivité LDAP/LDAPS (port 389 ou 636)
+- Accès réseau au contrôleur de domaine
+- Credentials valides (utilisateur standard ou privilégié)
+- Connectivité LDAP/LDAPS (port 389 ou 636)
 
 **Scénarios typiques** :
 1. Pentester depuis Kali Linux vers un domaine Windows
@@ -77,18 +77,18 @@ L'outil permet maintenant d'exploiter GoldenGMSA **directement depuis un host Li
 3. Audit de sécurité depuis un poste Linux d'administration
 4. Automatisation de tests depuis pipelines CI/CD Linux
 
-### 🔄 Compatibilité
+### Compatibilité
 
-- ✅ Python 3.7+
-- ✅ Linux (toutes distributions)
-- ✅ Active Directory 2012 R2 et supérieur
-- ✅ Mode hors ligne conservé (sans authentification)
+- Python 3.7+
+- Linux (toutes distributions)
+- Active Directory 2012 R2 et supérieur
+- Mode hors ligne conservé (sans authentification)
 
 ---
 
 ## [1.0.0] - 2025-10-17
 
-### 🎉 Version initiale
+### Version initiale
 
 - Implémentation Python de GoldenGMSA
 - Énumération des gMSA

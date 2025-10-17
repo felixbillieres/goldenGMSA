@@ -59,19 +59,19 @@ class LdapConnection:
                 bind_dn = self._format_bind_dn(self.username)
                 logger.info(f"Authentification avec {bind_dn}...")
                 self.conn.simple_bind_s(bind_dn, self.password)
-                logger.info("✅ Authentification réussie")
+                logger.info("Authentification réussie")
             else:
                 logger.info("Connexion anonyme...")
                 self.conn.simple_bind_s("", "")
                 
         except ldap.INVALID_CREDENTIALS:
-            logger.error("❌ Credentials invalides")
+            logger.error("Credentials invalides")
             raise Exception("Authentification échouée: credentials invalides")
         except ldap.SERVER_DOWN:
-            logger.error(f"❌ Impossible de joindre le serveur {target}")
+            logger.error(f"Impossible de joindre le serveur {target}")
             raise Exception(f"Serveur LDAP injoignable: {target}")
         except Exception as ex:
-            logger.error(f"❌ Erreur de connexion LDAP: {ex}")
+            logger.error(f"Erreur de connexion LDAP: {ex}")
             raise
             
     def _format_bind_dn(self, username: str) -> str:

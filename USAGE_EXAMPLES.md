@@ -23,8 +23,8 @@ python main.py -u 'pentester@corp.local' -p 'P@ssw0rd' --domain corp.local --use
 
 **Sortie attendue :**
 ```
-🔐 Authentification au domaine corp.local...
-✅ Connecté au domaine corp.local
+Authentification au domaine corp.local...
+Connecté au domaine corp.local
 
 sAMAccountName:         svc_gmsa$
 objectSid:              S-1-5-21-123456789-987654321-111111111-1234
@@ -55,8 +55,8 @@ python main.py -u 'pentester@corp.local' -p 'P@ssw0rd' --domain corp.local --for
 
 **Sortie attendue :**
 ```
-🔐 Authentification au domaine corp.local...
-✅ Connecté au domaine corp.local
+Authentification au domaine corp.local...
+Connecté au domaine corp.local
 
 Mot de passe encodé en Base64:	YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0NTY3ODkw...
 ```
@@ -144,7 +144,7 @@ with LdapConnection(
 ```bash
 # Vérifier les credentials
 python main.py -u 'user@corp.local' -p 'wrong_password' --domain corp.local gmsainfo
-# ❌ Credentials invalides
+# Erreur: Credentials invalides
 ```
 
 ### Erreur: "Serveur LDAP injoignable"
@@ -157,20 +157,5 @@ python main.py -u 'user@corp.local' -p 'password' --domain corp.local --dc-ip 10
 ```bash
 # Vérifier que l'utilisateur a les permissions nécessaires
 # Les comptes gMSA nécessitent des permissions de lecture spécifiques
-```
-
-## Notes de sécurité
-
-⚠️ **Attention :**
-- Ne jamais stocker les credentials en clair dans des scripts
-- Utiliser des variables d'environnement ou des gestionnaires de secrets
-- Toujours utiliser `--use-ssl` en production
-- Effacer les mots de passe calculés après utilisation
-
-```bash
-# Exemple avec variable d'environnement
-export AD_USER='user@corp.local'
-export AD_PASS='password'
-python main.py -u "$AD_USER" -p "$AD_PASS" --domain corp.local gmsainfo
 ```
 

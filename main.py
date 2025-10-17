@@ -227,10 +227,10 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
             if not domain and hasattr(args, 'forest') and args.forest:
                 domain = args.forest
             if not domain:
-                print("❌ Erreur: --domain ou --forest requis avec --username")
+                print("ERREUR: --domain ou --forest requis avec --username")
                 sys.exit(1)
                 
-            print(f"🔐 Authentification au domaine {domain}...")
+            print(f"Authentification au domaine {domain}...")
             ldap_conn = LdapConnection(
                 domain=domain,
                 username=args.username,
@@ -240,7 +240,7 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
             )
             ldap_conn.connect()
             LdapUtils.set_connection(ldap_conn)
-            print(f"✅ Connecté au domaine {domain}\n")
+            print(f"Connecté au domaine {domain}\n")
         
         if args.command == 'gmsainfo':
             process_gmsa_info(args)
