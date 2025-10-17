@@ -1,12 +1,18 @@
-# GoldenGMSA Python - Dépendances
+# GoldenGMSA Python - Dependencies
 
-# LDAP pour la communication avec Active Directory
+# LDAP for Active Directory communication
 python-ldap>=3.4.0
 
-# Cryptographie pour les opérations cryptographiques
+# LDAP3 for advanced authentication (PTH/PTT)
+ldap3>=2.9.1
+
+# Impacket for Pass-the-Hash and Pass-the-Ticket
+impacket>=0.11.0
+
+# Cryptography for cryptographic operations
 cryptography>=3.4.8
 
-# Utilitaires système
+# System utilities
 psutil>=5.8.0
 
 # Parsing des arguments en ligne de commande (inclus dans Python standard)

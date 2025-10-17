@@ -13,32 +13,57 @@ logger = logging.getLogger(__name__)
 
 class LdapConnection:
     """
-    Classe pour gérer une connexion LDAP avec credentials.
+    Class to manage LDAP connection with credentials.
+    Supports: Password, Pass-the-Hash (PTH), Pass-the-Ticket (PTT)
     """
     
     def __init__(self, domain: str, username: Optional[str] = None, 
                  password: Optional[str] = None, use_ssl: bool = False,
-                 dc_ip: Optional[str] = None):
+                 dc_ip: Optional[str] = None,
+                 nt_hash: Optional[str] = None,
+                 lm_hash: Optional[str] = None,
+                 aes_key: Optional[str] = None,
+                 ccache: Optional[str] = None,
+                 use_kerberos: bool = False):
         """
-        Initialise une connexion LDAP.
+        Initialize LDAP connection.
         
         Args:
-            domain: Nom de domaine (FQDN)
-            username: Nom d'utilisateur (format: user@domain.com ou DOMAIN\\user)
-            password: Mot de passe
-            use_ssl: Utiliser LDAPS (port 636)
-            dc_ip: Adresse IP du contrôleur de domaine (optionnel)
+            domain: Domain name (FQDN)
+            username: Username (format: user@domain.com or DOMAIN\\user)
+            password: Password
+            use_ssl: Use LDAPS (port 636)
+            dc_ip: Domain controller IP address (optional)
+            nt_hash: NTLM hash for Pass-the-Hash
+            lm_hash: LM hash for Pass-the-Hash (optional)
+            aes_key: AES key for Kerberos
+            ccache: Kerberos ccache file for Pass-the-Ticket
+            use_kerberos: Force Kerberos usage
         """
         self.domain = domain
         self.username = username
         self.password = password
         self.use_ssl = use_ssl
         self.dc_ip = dc_ip
+        self.nt_hash = nt_hash
+        self.lm_hash = lm_hash
+        self.aes_key = aes_key
+        self.ccache = ccache
+        self.use_kerberos = use_kerberos
         self.conn = None
         self._root_dse_cache = None
+        self._use_advanced_auth = nt_hash or ccache or aes_key or use_kerberos
         
     def connect(self):
-        """Établit la connexion LDAP."""
+        """Establish LDAP connection."""
+        # If using PTH/PTT, use ldap3 or impacket
+        if self._use_advanced_auth:
+            self._connect_advanced()
+        else:
+            self._connect_simple()
+    
+    def _connect_simple(self):
+        """Simple LDAP connection with python-ldap."""
         try:
             target = self.dc_ip if self.dc_ip else self.domain
             protocol = "ldaps" if self.use_ssl else "ldap"
@@ -72,6 +97,45 @@ class LdapConnection:
             raise Exception(f"Serveur LDAP injoignable: {target}")
         except Exception as ex:
             logger.error(f"Erreur de connexion LDAP: {ex}")
+            raise
+    
+    def _connect_advanced(self):
+        """Advanced LDAP connection with PTH/PTT via ldap3."""
+        try:
+            from .auth import AuthMethod, create_ldap3_connection
+            
+            # Créer l'objet d'authentification
+            auth = AuthMethod(
+                username=self.username,
+                password=self.password,
+                nt_hash=self.nt_hash,
+                lm_hash=self.lm_hash,
+                aes_key=self.aes_key,
+                ccache=self.ccache,
+                use_kerberos=self.use_kerberos
+            )
+            
+            target = self.dc_ip if self.dc_ip else self.domain
+            logger.info(f"Connexion LDAP avancée ({auth.auth_mode}) à {target}...")
+            
+            # Créer la connexion avec ldap3
+            self.conn = create_ldap3_connection(
+                self.domain,
+                auth,
+                self.dc_ip,
+                self.use_ssl
+            )
+            
+            # Marquer que c'est une connexion ldap3
+            self._is_ldap3 = True
+            
+            logger.info(f"Authentification réussie ({auth})")
+            
+        except ImportError as e:
+            logger.error(f"ldap3 requis pour PTH/PTT. Installer avec: pip install ldap3")
+            raise
+        except Exception as ex:
+            logger.error(f"Erreur de connexion LDAP avancée: {ex}")
             raise
             
     def _format_bind_dn(self, username: str) -> str:

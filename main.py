@@ -171,19 +171,32 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
                        help='Activer les messages de débogage détaillés')
     
     # Arguments d'authentification globaux
-    auth_group = parser.add_argument_group('Authentification')
+    auth_group = parser.add_argument_group('Authentication')
     auth_group.add_argument('-u', '--username', type=str,
-                           help='Nom d\'utilisateur (format: user@domain.com ou DOMAIN\\user)')
+                           help='Username (format: user@domain.com or DOMAIN\\user)')
     auth_group.add_argument('-p', '--password', type=str,
-                           help='Mot de passe')
+                           help='Password')
     auth_group.add_argument('-d', '--domain', type=str,
-                           help='Domaine/DC à interroger')
+                           help='Domain/DC to query')
     auth_group.add_argument('-f', '--forest', type=str,
-                           help='Forêt à interroger')
+                           help='Forest to query')
     auth_group.add_argument('--dc-ip', type=str,
-                           help='Adresse IP du contrôleur de domaine')
+                           help='Domain controller IP address')
     auth_group.add_argument('--use-ssl', action='store_true',
-                           help='Utiliser LDAPS (port 636)')
+                           help='Use LDAPS (port 636)')
+    
+    # Advanced authentication (PTH/PTT)
+    advanced_auth_group = parser.add_argument_group('Advanced Authentication (PTH/PTT)')
+    advanced_auth_group.add_argument('--nt-hash', '--nthash', type=str,
+                                    help='NTLM hash for Pass-the-Hash (format: 32 hex chars)')
+    advanced_auth_group.add_argument('--lm-hash', '--lmhash', type=str,
+                                    help='LM hash for Pass-the-Hash (optional, default: empty)')
+    advanced_auth_group.add_argument('--aes-key', '--aeskey', type=str,
+                                    help='AES key for Kerberos authentication')
+    advanced_auth_group.add_argument('--ccache', type=str,
+                                    help='Kerberos ccache file for Pass-the-Ticket')
+    advanced_auth_group.add_argument('--use-kerberos', '--kerberos', action='store_true',
+                                    help='Force Kerberos authentication')
     
     subparsers = parser.add_subparsers(dest='command', help='Commandes disponibles')
     
@@ -224,17 +237,33 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
                 print("ERREUR: --domain ou --forest requis avec --username")
                 sys.exit(1)
                 
-            print(f"Authentification au domaine {domain}...")
+            # Determine authentication method
+            auth_method = "password"
+            if hasattr(args, 'nt_hash') and args.nt_hash:
+                auth_method = "Pass-the-Hash"
+            elif hasattr(args, 'ccache') and args.ccache:
+                auth_method = "Pass-the-Ticket"
+            elif hasattr(args, 'aes_key') and args.aes_key:
+                auth_method = "Kerberos (AES)"
+            elif hasattr(args, 'use_kerberos') and args.use_kerberos:
+                auth_method = "Kerberos"
+            
+            print(f"Authenticating to domain {domain} ({auth_method})...")
             ldap_conn = LdapConnection(
                 domain=domain,
                 username=args.username,
                 password=args.password,
                 use_ssl=args.use_ssl,
-                dc_ip=args.dc_ip
+                dc_ip=args.dc_ip,
+                nt_hash=getattr(args, 'nt_hash', None),
+                lm_hash=getattr(args, 'lm_hash', None),
+                aes_key=getattr(args, 'aes_key', None),
+                ccache=getattr(args, 'ccache', None),
+                use_kerberos=getattr(args, 'use_kerberos', False)
             )
             ldap_conn.connect()
             LdapUtils.set_connection(ldap_conn)
-            print(f"Connecté au domaine {domain}\n")
+            print(f"Connected to domain {domain}\n")
         
         if args.command == 'gmsainfo':
             process_gmsa_info(args)
