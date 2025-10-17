@@ -156,3 +156,6 @@ results/
 docs/
 tests/
 examples/
+
+# Changelog
+CHANGELOG.md
