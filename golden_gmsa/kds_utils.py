@@ -5,9 +5,7 @@ Utilitaires pour les opérations KDS (Key Distribution Service).
 import struct
 import time
 from typing import List
-
-# Durée du cycle de clé KDS en nanosecondes (360000000000 = 6 minutes)
-KEY_CYCLE_DURATION = 360000000000
+from .config import KEY_CYCLE_DURATION
 
 
 class KdsUtils:
@@ -36,7 +34,7 @@ class KdsUtils:
         return [l0_key_id, l1_key_id, l2_key_id]
     
     @staticmethod
-    def get_current_interval_id(kds_key_cycle_duration: int, some_flag: int = 0) -> tuple:
+    def get_current_interval_id(kds_key_cycle_duration: int = KEY_CYCLE_DURATION, some_flag: int = 0) -> tuple:
         """
         Calcule les identifiants d'intervalle actuels.
         

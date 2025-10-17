@@ -18,7 +18,7 @@ from .gmsa_password import GmsaPassword
 from .msds_managed_password_id import MsdsManagedPasswordId
 from .ldap_utils import LdapUtils, LdapConnection
 from .kds_utils import KdsUtils
-from .config import Config
+from . import config
 
 __all__ = [
     'GmsaAccount',
@@ -28,5 +28,5 @@ __all__ = [
     'LdapUtils',
     'LdapConnection',
     'KdsUtils',
-    'Config'
+    'config'
 ]

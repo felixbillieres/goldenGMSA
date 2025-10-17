@@ -12,6 +12,7 @@ from .msds_managed_password_id import MsdsManagedPasswordId
 from .group_key_envelope import GroupKeyEnvelope
 from .l0_key import L0Key
 from .kds_utils import KdsUtils
+from .config import DEFAULT_GMSA_SECURITY_DESCRIPTOR, KEY_CYCLE_DURATION, KDS_ROOT_KEY_DATA_SIZE_DEFAULT
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +21,6 @@ class GmsaPassword:
     """
     Classe pour la génération de mots de passe GMSA.
     """
-    
-    # Descripteur de sécurité GMSA par défaut (équivalent au code C#)
-    DEFAULT_GMSA_SECURITY_DESCRIPTOR = bytes([
-        0x01, 0x00, 0x04, 0x80, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x14, 0x00, 0x00, 0x00, 0x02, 0x00, 0x1C, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x14, 0x00, 0x9F, 0x01, 0x12, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x09,
-        0x00, 0x00, 0x00, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x12, 0x00, 0x00, 0x00
-    ])
     
     @staticmethod
     def get_password(sid: str, root_key: RootKey, pwd_id: MsdsManagedPasswordId, 
@@ -46,12 +39,12 @@ class GmsaPassword:
             Mot de passe généré en bytes
         """
         l0_key_id, l1_key_id, l2_key_id = KdsUtils.get_current_interval_id(
-            KdsUtils.KEY_CYCLE_DURATION, 0
+            KEY_CYCLE_DURATION, 0
         )
         
         gke, gke_size = GmsaPassword._get_sid_key_local(
-            GmsaPassword.DEFAULT_GMSA_SECURITY_DESCRIPTOR,
-            len(GmsaPassword.DEFAULT_GMSA_SECURITY_DESCRIPTOR),
+            DEFAULT_GMSA_SECURITY_DESCRIPTOR,
+            len(DEFAULT_GMSA_SECURITY_DESCRIPTOR),
             root_key,
             l0_key_id, l1_key_id, l2_key_id,
             0,
@@ -128,8 +121,8 @@ class GmsaPassword:
             root_key.kds_root_key_data,
             root_key.kds_root_key_data_size,
             kdf_context, len(kdf_context),
-            1, generate_derived_key := bytearray(RootKey.KDS_ROOT_KEY_DATA_SIZE_DEFAULT),
-            RootKey.KDS_ROOT_KEY_DATA_SIZE_DEFAULT, 0
+            1, generate_derived_key := bytearray(KDS_ROOT_KEY_DATA_SIZE_DEFAULT),
+            KDS_ROOT_KEY_DATA_SIZE_DEFAULT, 0
         )
         
         l0_key = L0Key(root_key, l0_key_id, generate_derived_key)
@@ -145,7 +138,7 @@ class GmsaPassword:
             Tuple contenant (clé dérivée principale, clé dérivée secondaire)
         """
         root_key_guid = l0_key.cn.encode('utf-8')[:16].ljust(16, b'\x00')
-        derived_key = bytearray(RootKey.KDS_ROOT_KEY_DATA_SIZE_DEFAULT)
+        derived_key = bytearray(KDS_ROOT_KEY_DATA_SIZE_DEFAULT)
         derived_key2 = None
         
         # Générer le contexte KDF
@@ -168,7 +161,7 @@ class GmsaPassword:
             64,
             kdf_context_modified, len(kdf_context_modified),
             1, derived_key,
-            RootKey.KDS_ROOT_KEY_DATA_SIZE_DEFAULT, 0
+            KDS_ROOT_KEY_DATA_SIZE_DEFAULT, 0
         )
         
         # Générer la clé secondaire si nécessaire
@@ -182,13 +175,13 @@ class GmsaPassword:
                 l0_key.kdf_param_size, generated_derived_key,
                 64, kdf_context_copy, len(kdf_context_copy),
                 31 - l1_key_id, derived_key,
-                RootKey.KDS_ROOT_KEY_DATA_SIZE_DEFAULT, 0
+                KDS_ROOT_KEY_DATA_SIZE_DEFAULT, 0
             )
         
         if l1_key_id > 0:
             kdf_context_copy = bytearray(kdf_context)
             # Simuler la modification du contexte (simplifié)
-            derived_key2 = bytearray(RootKey.KDS_ROOT_KEY_DATA_SIZE_DEFAULT)
+            derived_key2 = bytearray(KDS_ROOT_KEY_DATA_SIZE_DEFAULT)
             generated_derived_key = derived_key.copy()
             
             derived_key2 = GmsaPassword._generate_derived_key(
@@ -196,7 +189,7 @@ class GmsaPassword:
                 l0_key.kdf_param_size, generated_derived_key,
                 64, kdf_context_copy, len(kdf_context_copy),
                 1, derived_key2,
-                RootKey.KDS_ROOT_KEY_DATA_SIZE_DEFAULT, 0
+                KDS_ROOT_KEY_DATA_SIZE_DEFAULT, 0
             )
         
         return bytes(derived_key), bytes(derived_key2) if derived_key2 else None
@@ -210,7 +203,7 @@ class GmsaPassword:
             Clé L2 générée
         """
         root_key_guid = l0_key.cn.encode('utf-8')[:16].ljust(16, b'\x00')
-        derived_key = bytearray(RootKey.KDS_ROOT_KEY_DATA_SIZE_DEFAULT)
+        derived_key = bytearray(KDS_ROOT_KEY_DATA_SIZE_DEFAULT)
         
         # Générer le contexte KDF
         kdf_context = GmsaPassword._generate_kdf_context(
@@ -225,7 +218,7 @@ class GmsaPassword:
             l0_key.kdf_param_size, l1_derived_key,
             64, kdf_context, len(kdf_context),
             some_flag, derived_key,
-            RootKey.KDS_ROOT_KEY_DATA_SIZE_DEFAULT, 0
+            KDS_ROOT_KEY_DATA_SIZE_DEFAULT, 0
         )
         
         return bytes(derived_key)
@@ -355,7 +348,7 @@ class GmsaPassword:
             if l2_key_diff > 0:
                 # Calculer la clé L2 mise à jour
                 if l2_key is None:
-                    l2_key = bytearray(RootKey.KDS_ROOT_KEY_DATA_SIZE_DEFAULT)
+                    l2_key = bytearray(KDS_ROOT_KEY_DATA_SIZE_DEFAULT)
                 
                 # Générer la clé dérivée pour L2
                 pwd_blob = GmsaPassword._generate_derived_key(

@@ -366,21 +366,3 @@ class LdapUtils:
         except Exception as ex:
             logger.error(f"Erreur lors de la recherche LDAP dans {search_base}: {ex}")
             raise
-    
-    @staticmethod
-    def test_connection(domain_fqdn: str) -> bool:
-        """
-        Teste la connectivité LDAP avec le domaine.
-        
-        Args:
-            domain_fqdn: FQDN du domaine
-            
-        Returns:
-            True si la connexion réussit, False sinon
-        """
-        try:
-            LdapUtils.get_root_dse(domain_fqdn)
-            return True
-        except Exception as ex:
-            logger.error(f"Test de connexion LDAP échoué pour {domain_fqdn}: {ex}")
-            return False

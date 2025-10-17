@@ -6,6 +6,7 @@ import logging
 import struct
 from typing import List, Iterator, Optional
 from .ldap_utils import LdapUtils
+from .config import KDS_ROOT_KEY_REQUIRED_ATTRIBUTES, KDS_ROOT_KEY_DATA_SIZE_DEFAULT
 
 logger = logging.getLogger(__name__)
 
@@ -14,24 +15,6 @@ class RootKey:
     """
     Classe représentant une clé racine KDS (Key Distribution Service).
     """
-    
-    # Attributs LDAP requis pour les clés racine KDS
-    KDS_ROOT_KEY_ATTRIBUTES = [
-        "msKds-SecretAgreementParam",
-        "msKds-RootKeyData", 
-        "msKds-KDFParam",
-        "msKds-KDFAlgorithmID",
-        "msKds-CreateTime",
-        "msKds-UseStartTime",
-        "msKds-Version",
-        "msKds-DomainID",
-        "cn",
-        "msKds-PrivateKeyLength",
-        "msKds-PublicKeyLength",
-        "msKds-SecretAgreementAlgorithmID"
-    ]
-    
-    KDS_ROOT_KEY_DATA_SIZE_DEFAULT = 64
     
     def __init__(self, search_result: dict = None, file_path: str = None, root_key_bytes: bytes = None):
         """
@@ -76,7 +59,7 @@ class RootKey:
         self.kds_create_time = int(search_result['msKds-CreateTime'][0])
         self.kds_use_start_time = int(search_result['msKds-UseStartTime'][0])
         self.prob_reserved7 = 0
-        self.kds_root_key_data_size = self.KDS_ROOT_KEY_DATA_SIZE_DEFAULT
+        self.kds_root_key_data_size = KDS_ROOT_KEY_DATA_SIZE_DEFAULT
         self.kds_root_key_data = search_result['msKds-RootKeyData'][0]
     
     def _init_from_file(self, file_path: str):
@@ -116,7 +99,7 @@ class RootKey:
         self.kds_create_time = int(lines[9].strip())
         self.kds_use_start_time = int(lines[10].strip())
         self.prob_reserved7 = 0
-        self.kds_root_key_data_size = self.KDS_ROOT_KEY_DATA_SIZE_DEFAULT
+        self.kds_root_key_data_size = KDS_ROOT_KEY_DATA_SIZE_DEFAULT
         self.kds_root_key_data = base64.b64decode(lines[11].strip())
     
     def _init_from_bytes(self, root_key_bytes: bytes):
@@ -202,7 +185,7 @@ class RootKey:
             config_naming_context = LdapUtils._get_config_naming_context(forest_name)
             ldap_filter = f"(&(objectClass=msKds-ProvRootKey)(cn={root_key_id}))"
             
-            results = LdapUtils.find_in_config_partition(forest_name, ldap_filter, RootKey.KDS_ROOT_KEY_ATTRIBUTES)
+            results = LdapUtils.find_in_config_partition(forest_name, ldap_filter, KDS_ROOT_KEY_REQUIRED_ATTRIBUTES)
             
             if not results:
                 return None
@@ -228,7 +211,7 @@ class RootKey:
             config_naming_context = LdapUtils._get_config_naming_context(forest_name)
             ldap_filter = "(objectClass=msKds-ProvRootKey)"
             
-            results = LdapUtils.find_in_config_partition(forest_name, ldap_filter, RootKey.KDS_ROOT_KEY_ATTRIBUTES)
+            results = LdapUtils.find_in_config_partition(forest_name, ldap_filter, KDS_ROOT_KEY_REQUIRED_ATTRIBUTES)
             
             if not results:
                 return
