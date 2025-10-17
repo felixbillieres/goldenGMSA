@@ -231,10 +231,19 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
     try:
         ldap_conn = None
         
-        if args.username and args.password:
+        # Check if any authentication method is provided
+        has_auth = (
+            args.password or 
+            getattr(args, 'nt_hash', None) or 
+            getattr(args, 'ccache', None) or 
+            getattr(args, 'aes_key', None) or
+            getattr(args, 'use_kerberos', False)
+        )
+        
+        if args.username and has_auth:
             domain = args.domain or args.forest
             if not domain:
-                print("ERREUR: --domain ou --forest requis avec --username")
+                print("ERROR: --domain or --forest required with --username")
                 sys.exit(1)
                 
             # Determine authentication method

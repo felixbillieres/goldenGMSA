@@ -101,42 +101,77 @@ class LdapConnection:
             raise
     
     def _connect_advanced(self):
-        """Advanced LDAP connection with PTH/PTT via ldap3."""
+        """Advanced LDAP connection with PTH/PTT via impacket."""
         try:
-            from .auth import AuthMethod, create_ldap3_connection
-            
-            # Créer l'objet d'authentification
-            auth = AuthMethod(
-                username=self.username,
-                password=self.password,
-                nt_hash=self.nt_hash,
-                lm_hash=self.lm_hash,
-                aes_key=self.aes_key,
-                ccache=self.ccache,
-                use_kerberos=self.use_kerberos
-            )
+            from impacket.ldap import ldap as impacket_ldap
+            from impacket.ldap import ldapasn1
             
             target = self.dc_ip if self.dc_ip else self.domain
-            logger.info(f"Connexion LDAP avancée ({auth.auth_mode}) à {target}...")
             
-            # Créer la connexion avec ldap3
-            self.conn = create_ldap3_connection(
-                self.domain,
-                auth,
-                self.dc_ip,
-                self.use_ssl
+            # Setup Kerberos ccache if needed
+            if self.ccache:
+                import os
+                if os.path.exists(self.ccache):
+                    os.environ['KRB5CCNAME'] = self.ccache
+                    logger.info(f"Using Kerberos ccache: {self.ccache}")
+            
+            # Determine base DN
+            base_dn = ','.join([f'DC={part}' for part in self.domain.split('.')])
+            
+            # Create connection
+            logger.info(f"Connecting to {target} via impacket LDAP...")
+            
+            self.conn = impacket_ldap.LDAPConnection(
+                f'ldap://{target}',
+                base_dn,
+                self.dc_ip
             )
             
-            # Marquer que c'est une connexion ldap3
-            self._is_ldap3 = True
+            # Authenticate based on method
+            if self.nt_hash:
+                # Pass-the-Hash with NTLM
+                logger.info(f"Authenticating with NTLM hash for user {self.username}...")
+                lm_hash = self.lm_hash or 'aad3b435b51404eeaad3b435b51404ee'
+                self.conn.login(
+                    user=self.username,
+                    password='',
+                    domain=self.domain,
+                    lmhash=lm_hash,
+                    nthash=self.nt_hash
+                )
+                logger.info("Authentication successful (Pass-the-Hash)")
+                
+            elif self.use_kerberos or self.aes_key or self.ccache:
+                # Kerberos authentication
+                logger.info(f"Authenticating with Kerberos for user {self.username}...")
+                self.conn.kerberosLogin(
+                    user=self.username,
+                    password='',
+                    domain=self.domain,
+                    lmhash='',
+                    nthash='',
+                    aesKey=self.aes_key or '',
+                    kdcHost=self.dc_ip or self.domain
+                )
+                logger.info("Authentication successful (Kerberos)")
+            else:
+                # Fallback to password
+                logger.info(f"Authenticating with password for user {self.username}...")
+                self.conn.login(
+                    user=self.username,
+                    password=self.password,
+                    domain=self.domain
+                )
+                logger.info("Authentication successful (Password)")
             
-            logger.info(f"Authentification réussie ({auth})")
+            # Mark as impacket connection
+            self._is_ldap3 = True  # Using same flag for compatibility
             
         except ImportError as e:
-            logger.error(f"ldap3 requis pour PTH/PTT. Installer avec: pip install ldap3")
+            logger.error("Impacket required for PTH/PTT. Install with: pip install impacket")
             raise
         except Exception as ex:
-            logger.error(f"Erreur de connexion LDAP avancée: {ex}")
+            logger.error(f"Advanced LDAP connection error: {ex}")
             raise
             
     def _format_bind_dn(self, username: str) -> str:
@@ -161,8 +196,13 @@ class LdapConnection:
         if self.conn:
             try:
                 if self._is_ldap3:
-                    self.conn.unbind()
+                    # For impacket LDAP
+                    if hasattr(self.conn, 'close'):
+                        self.conn.close()
+                    elif hasattr(self.conn, 'unbind'):
+                        self.conn.unbind()
                 else:
+                    # For python-ldap
                     self.conn.unbind_s()
                 logger.info("LDAP connection closed")
             except:
@@ -262,26 +302,27 @@ class LdapUtils:
                 if conn_obj._root_dse_cache:
                     return conn_obj._root_dse_cache
                 
-                # Check if using ldap3
+                # Check if using impacket (marked as _is_ldap3 for compatibility)
                 if hasattr(conn_obj, '_is_ldap3') and conn_obj._is_ldap3:
-                    from ldap3 import BASE
-                    conn_obj.conn.search(
-                        search_base='',
-                        search_filter='(objectClass=*)',
-                        search_scope=BASE,
-                        attributes=['*']
+                    # Use impacket LDAP to get RootDSE
+                    search_results = conn_obj.conn.search(
+                        searchFilter='(objectClass=*)',
+                        attributes=['*'],
+                        searchBase='',
+                        scope=0  # BASE scope
                     )
-                    if conn_obj.conn.entries:
-                        # Convert ldap3 entry to dict
-                        entry = conn_obj.conn.entries[0]
+                    
+                    if search_results and len(search_results) > 0:
+                        item = search_results[0]
                         root_dse = {}
-                        for attr in entry.entry_attributes:
-                            val = getattr(entry, attr)
-                            if hasattr(val, 'raw_values'):
-                                root_dse[attr] = val.raw_values
-                            elif hasattr(val, 'value'):
-                                v = val.value
-                                root_dse[attr] = [v.encode('utf-8') if isinstance(v, str) else v]
+                        if isinstance(item, dict) and 'attributes' in item:
+                            for attr_item in item['attributes']:
+                                if isinstance(attr_item, tuple) and len(attr_item) >= 2:
+                                    attr_name = attr_item[0]
+                                    attr_values = attr_item[1]
+                                    if not isinstance(attr_values, list):
+                                        attr_values = [attr_values]
+                                    root_dse[attr_name] = attr_values
                         conn_obj._root_dse_cache = root_dse
                         return root_dse
                     else:
@@ -380,10 +421,10 @@ class LdapUtils:
     @staticmethod
     def _perform_ldap3_search(conn, search_base: str, ldap_filter: str, attributes: List[str]) -> List[Dict[str, Any]]:
         """
-        Perform LDAP search using ldap3 library.
+        Perform LDAP search using impacket library.
         
         Args:
-            conn: ldap3 Connection object
+            conn: impacket LDAP Connection object
             search_base: Search base DN
             ldap_filter: LDAP filter
             attributes: List of attributes to retrieve
@@ -392,40 +433,34 @@ class LdapUtils:
             List of search results in python-ldap compatible format
         """
         try:
-            from ldap3 import SUBTREE
-            
-            # Perform search with ldap3
-            conn.search(
-                search_base=search_base,
-                search_filter=ldap_filter,
-                search_scope=SUBTREE,
-                attributes=attributes
+            # Perform search with impacket
+            search_results = conn.search(
+                searchFilter=ldap_filter,
+                attributes=attributes,
+                searchBase=search_base
             )
             
-            # Convert ldap3 results to python-ldap format
+            # Convert impacket results to python-ldap format
             results = []
-            for entry in conn.entries:
-                attrs = {}
-                for attr_name in attributes:
-                    if hasattr(entry, attr_name):
-                        attr_value = getattr(entry, attr_name)
-                        if hasattr(attr_value, 'value'):
-                            # Get raw value
-                            raw_value = attr_value.value
-                            if isinstance(raw_value, str):
-                                attrs[attr_name] = [raw_value.encode('utf-8')]
-                            elif isinstance(raw_value, bytes):
-                                attrs[attr_name] = [raw_value]
-                            elif isinstance(raw_value, list):
-                                attrs[attr_name] = [v.encode('utf-8') if isinstance(v, str) else v for v in raw_value]
-                            else:
-                                attrs[attr_name] = [str(raw_value).encode('utf-8')]
-                        elif hasattr(attr_value, 'raw_values'):
-                            # Get raw bytes directly
-                            attrs[attr_name] = attr_value.raw_values
-                
-                if attrs:
-                    results.append(attrs)
+            
+            if search_results:
+                for item in search_results:
+                    if isinstance(item, dict) and 'attributes' in item:
+                        # impacket format: item['attributes'] is a list of tuples (name, [values])
+                        attrs = {}
+                        for attr_item in item['attributes']:
+                            if isinstance(attr_item, tuple) and len(attr_item) >= 2:
+                                attr_name = attr_item[0]
+                                attr_values = attr_item[1]
+                                
+                                # Normalize attribute values
+                                if not isinstance(attr_values, list):
+                                    attr_values = [attr_values]
+                                
+                                attrs[attr_name] = attr_values
+                        
+                        if attrs:
+                            results.append(attrs)
             
             if not results:
                 logger.warning(f"No results found with LDAP filter: {ldap_filter}")
@@ -434,7 +469,7 @@ class LdapUtils:
             return results
             
         except Exception as ex:
-            logger.error(f"Error during ldap3 search in {search_base}: {ex}")
+            logger.error(f"Error during impacket LDAP search in {search_base}: {ex}")
             raise
     
     @staticmethod
