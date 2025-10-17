@@ -3,8 +3,38 @@ Module pour la gestion des identifiants de mot de passe géré MSDS.
 """
 
 import struct
+import uuid
 from typing import Optional
 from .ldap_utils import LdapUtils
+
+
+def format_guid(guid_bytes: bytes) -> str:
+    """
+    Formate un GUID en bytes vers sa représentation string UUID.
+    
+    Args:
+        guid_bytes: GUID au format bytes (16 bytes)
+        
+    Returns:
+        GUID au format string (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+    """
+    if not guid_bytes or len(guid_bytes) != 16:
+        return str(guid_bytes)
+    
+    try:
+        # Convertir les bytes en UUID standard
+        # Les GUIDs Microsoft utilisent un ordre mixte (little-endian pour les 3 premiers groupes)
+        guid_uuid = uuid.UUID(bytes_le=guid_bytes)
+        return str(guid_uuid)
+    except Exception:
+        # Fallback : format simple en hex
+        return '-'.join([
+            guid_bytes[0:4].hex(),
+            guid_bytes[4:6].hex(),
+            guid_bytes[6:8].hex(),
+            guid_bytes[8:10].hex(),
+            guid_bytes[10:16].hex()
+        ])
 
 
 class MsdsManagedPasswordId:
@@ -30,7 +60,7 @@ class MsdsManagedPasswordId:
         self.l2_index = struct.unpack('<I', pwd_blob[20:24])[0]
         
         # GUID (16 bytes)
-        self.root_key_identifier = str(pwd_blob[24:40])
+        self.root_key_identifier = format_guid(pwd_blob[24:40])
         
         self.cb_unknown = struct.unpack('<I', pwd_blob[40:44])[0]
         self.cb_domain_name = struct.unpack('<I', pwd_blob[44:48])[0]

@@ -3,11 +3,54 @@ Module pour la gestion des comptes Group Managed Service Account (gMSA).
 """
 
 import logging
+import struct
 from typing import Optional, List, Iterator
 from .msds_managed_password_id import MsdsManagedPasswordId
 from .ldap_utils import LdapUtils
 
 logger = logging.getLogger(__name__)
+
+
+def convert_sid_to_string(sid_bytes: bytes) -> str:
+    """
+    Convertit un SID en bytes vers sa représentation string.
+    
+    Args:
+        sid_bytes: SID au format bytes
+        
+    Returns:
+        SID au format string (ex: S-1-5-21-...)
+    """
+    if not sid_bytes or len(sid_bytes) < 8:
+        return str(sid_bytes)
+    
+    try:
+        # Structure du SID:
+        # byte 0: Revision (toujours 1)
+        # byte 1: Nombre de sous-autorités
+        # bytes 2-7: Autorité (6 bytes, big-endian)
+        # bytes 8+: Sous-autorités (4 bytes chacune, little-endian)
+        
+        revision = sid_bytes[0]
+        sub_auth_count = sid_bytes[1]
+        
+        # Autorité (6 bytes en big-endian, mais on utilise 8 bytes avec padding)
+        authority = struct.unpack('>Q', b'\x00\x00' + sid_bytes[2:8])[0]
+        
+        # Construction du SID
+        sid = f'S-{revision}-{authority}'
+        
+        # Ajout des sous-autorités
+        for i in range(sub_auth_count):
+            offset = 8 + (i * 4)
+            if offset + 4 <= len(sid_bytes):
+                sub_auth = struct.unpack('<I', sid_bytes[offset:offset + 4])[0]
+                sid += f'-{sub_auth}'
+        
+        return sid
+    except Exception as e:
+        logger.warning(f"Erreur lors de la conversion du SID: {e}")
+        return str(sid_bytes)
 
 
 class GmsaAccount:
@@ -124,10 +167,18 @@ class GmsaAccount:
                 raise KeyError(f"L'attribut {attr} n'a pas été trouvé")
         
         dn = search_result['distinguishedName'][0]
+        if isinstance(dn, bytes):
+            dn = dn.decode('utf-8')
+            
         pwd_blob = search_result[GmsaAccount.MSDS_MANAGED_PASSWORD_ID_ATTRIBUTE_NAME][0]
         pwd_id = MsdsManagedPasswordId(pwd_blob)
-        sid = search_result['objectSid'][0]
+        
+        sid_bytes = search_result['objectSid'][0]
+        sid = convert_sid_to_string(sid_bytes)
+        
         sam_id = search_result['sAMAccountName'][0]
+        if isinstance(sam_id, bytes):
+            sam_id = sam_id.decode('utf-8')
         
         return GmsaAccount(sam_id, dn, sid, pwd_id)
     
@@ -140,10 +191,16 @@ class GmsaAccount:
         """
         import base64
         
-        result = f"sAMAccountName:\t\t{self.sam_account_name}\n"
-        result += f"objectSid:\t\t\t{self.sid}\n"
-        result += f"rootKeyGuid:\t\t{self.managed_password_id.root_key_identifier}\n"
-        result += f"msds-ManagedPasswordID:\t{base64.b64encode(self.managed_password_id.msds_managed_password_id_bytes).decode('utf-8')}\n"
+        result = f"sAMAccountName:         {self.sam_account_name}\n"
+        result += f"objectSid:              {self.sid}\n"
+        result += f"distinguishedName:      {self.distinguished_name}\n"
+        result += f"rootKeyGuid:            {self.managed_password_id.root_key_identifier}\n"
+        result += f"domainName:             {self.managed_password_id.domain_name}\n"
+        result += f"forestName:             {self.managed_password_id.forest_name}\n"
+        result += f"L0 Index:               {self.managed_password_id.l0_index}\n"
+        result += f"L1 Index:               {self.managed_password_id.l1_index}\n"
+        result += f"L2 Index:               {self.managed_password_id.l2_index}\n"
+        result += f"msDS-ManagedPasswordId: {base64.b64encode(self.managed_password_id.msds_managed_password_id_bytes).decode('utf-8')}\n"
         result += "----------------------------------------------\n"
         
         return result
