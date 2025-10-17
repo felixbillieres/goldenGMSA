@@ -19,22 +19,49 @@ pip install -r requirements.txt
 
 ## Utilisation
 
+### Authentification au domaine
+
 ```bash
-# Énumérer tous les gMSA
-python main.py gmsainfo
+# Avec authentification (recommandé)
+python main.py -u 'DOMAIN\username' -p 'password' --domain domain.local gmsainfo
+
+# Ou avec format UPN
+python main.py -u 'user@domain.local' -p 'password' --domain domain.local gmsainfo
+
+# Avec IP du contrôleur de domaine
+python main.py -u 'user@domain.local' -p 'password' --domain domain.local --dc-ip 192.168.1.10 gmsainfo
+
+# Avec LDAPS (SSL)
+python main.py -u 'user@domain.local' -p 'password' --domain domain.local --use-ssl gmsainfo
+```
+
+### Commandes disponibles
+
+```bash
+# Énumérer tous les gMSA du domaine
+python main.py -u 'user@domain.local' -p 'password' --domain domain.local gmsainfo
 
 # Interroger un gMSA spécifique par SID
-python main.py gmsainfo --sid <SID_GMSA>
+python main.py -u 'user@domain.local' -p 'password' --domain domain.local gmsainfo --sid <SID_GMSA>
 
 # Dumper toutes les clés racine KDS
-python main.py kdsinfo
+python main.py -u 'user@domain.local' -p 'password' --domain domain.local kdsinfo
 
 # Calculer le mot de passe d'un gMSA
-python main.py compute --sid <SID_GMSA>
+python main.py -u 'user@domain.local' -p 'password' --domain domain.local compute --sid <SID_GMSA>
+
+# Mode hors ligne (sans authentification, avec clés exportées)
+python main.py compute --sid <SID_GMSA> --kdskey <BASE64_KEY> --pwdid <BASE64_PWDID>
 
 # Voir toutes les options
 python main.py --help
 ```
+
+### Formats d'authentification supportés
+
+- **UPN** : `user@domain.local`
+- **NetBIOS** : `DOMAIN\username`
+- **Simple** : `username` (le domaine sera ajouté automatiquement)
 
 ## Avertissement
 

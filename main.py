@@ -22,7 +22,7 @@ from golden_gmsa.gmsa_account import GmsaAccount
 from golden_gmsa.root_key import RootKey
 from golden_gmsa.gmsa_password import GmsaPassword
 from golden_gmsa.msds_managed_password_id import MsdsManagedPasswordId
-from golden_gmsa.ldap_utils import LdapUtils
+from golden_gmsa.ldap_utils import LdapUtils, LdapConnection
 
 
 def setup_logging():
@@ -170,6 +170,17 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
     parser.add_argument('--verbose', '-v', action='store_true',
                        help='Activer les messages de débogage détaillés')
     
+    # Arguments d'authentification globaux
+    auth_group = parser.add_argument_group('Authentification')
+    auth_group.add_argument('-u', '--username', type=str,
+                           help='Nom d\'utilisateur (format: user@domain.com ou DOMAIN\\user)')
+    auth_group.add_argument('-p', '--password', type=str,
+                           help='Mot de passe')
+    auth_group.add_argument('--dc-ip', type=str,
+                           help='Adresse IP du contrôleur de domaine')
+    auth_group.add_argument('--use-ssl', action='store_true',
+                           help='Utiliser LDAPS (port 636)')
+    
     subparsers = parser.add_subparsers(dest='command', help='Commandes disponibles')
     
     # Commande gmsainfo
@@ -209,6 +220,28 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
         return
     
     try:
+        ldap_conn = None
+        
+        if args.username and args.password:
+            domain = args.domain if hasattr(args, 'domain') and args.domain else None
+            if not domain and hasattr(args, 'forest') and args.forest:
+                domain = args.forest
+            if not domain:
+                print("❌ Erreur: --domain ou --forest requis avec --username")
+                sys.exit(1)
+                
+            print(f"🔐 Authentification au domaine {domain}...")
+            ldap_conn = LdapConnection(
+                domain=domain,
+                username=args.username,
+                password=args.password,
+                use_ssl=args.use_ssl,
+                dc_ip=args.dc_ip
+            )
+            ldap_conn.connect()
+            LdapUtils.set_connection(ldap_conn)
+            print(f"✅ Connecté au domaine {domain}\n")
+        
         if args.command == 'gmsainfo':
             process_gmsa_info(args)
         elif args.command == 'kdsinfo':
@@ -218,6 +251,9 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
         else:
             print(f"Commande inconnue: {args.command}")
             parser.print_help()
+            
+        if ldap_conn:
+            ldap_conn.disconnect()
             
     except KeyboardInterrupt:
         print("\nInterruption par l'utilisateur")

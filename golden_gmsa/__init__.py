@@ -16,7 +16,7 @@ from .gmsa_account import GmsaAccount
 from .root_key import RootKey
 from .gmsa_password import GmsaPassword
 from .msds_managed_password_id import MsdsManagedPasswordId
-from .ldap_utils import LdapUtils
+from .ldap_utils import LdapUtils, LdapConnection
 from .kds_utils import KdsUtils
 from .config import Config
 
@@ -26,6 +26,7 @@ __all__ = [
     'GmsaPassword',
     'MsdsManagedPasswordId',
     'LdapUtils',
+    'LdapConnection',
     'KdsUtils',
     'Config'
 ]
