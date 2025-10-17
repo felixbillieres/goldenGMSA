@@ -53,6 +53,7 @@ class LdapConnection:
         self.conn = None
         self._root_dse_cache = None
         self._use_advanced_auth = nt_hash or ccache or aes_key or use_kerberos
+        self._is_ldap3 = False
         
     def connect(self):
         """Establish LDAP connection."""
@@ -156,11 +157,14 @@ class LdapConnection:
             return username + '@' + self.domain
             
     def disconnect(self):
-        """Ferme la connexion LDAP."""
+        """Close LDAP connection."""
         if self.conn:
             try:
-                self.conn.unbind_s()
-                logger.info("Connexion LDAP fermée")
+                if self._is_ldap3:
+                    self.conn.unbind()
+                else:
+                    self.conn.unbind_s()
+                logger.info("LDAP connection closed")
             except:
                 pass
                 
@@ -257,13 +261,38 @@ class LdapUtils:
             if conn_obj and conn_obj.conn:
                 if conn_obj._root_dse_cache:
                     return conn_obj._root_dse_cache
-                    
-                result = conn_obj.conn.search_s("", ldap.SCOPE_BASE, "(objectClass=*)")
-                if result and len(result) > 0:
-                    conn_obj._root_dse_cache = result[0][1]
-                    return conn_obj._root_dse_cache
+                
+                # Check if using ldap3
+                if hasattr(conn_obj, '_is_ldap3') and conn_obj._is_ldap3:
+                    from ldap3 import BASE
+                    conn_obj.conn.search(
+                        search_base='',
+                        search_filter='(objectClass=*)',
+                        search_scope=BASE,
+                        attributes=['*']
+                    )
+                    if conn_obj.conn.entries:
+                        # Convert ldap3 entry to dict
+                        entry = conn_obj.conn.entries[0]
+                        root_dse = {}
+                        for attr in entry.entry_attributes:
+                            val = getattr(entry, attr)
+                            if hasattr(val, 'raw_values'):
+                                root_dse[attr] = val.raw_values
+                            elif hasattr(val, 'value'):
+                                v = val.value
+                                root_dse[attr] = [v.encode('utf-8') if isinstance(v, str) else v]
+                        conn_obj._root_dse_cache = root_dse
+                        return root_dse
+                    else:
+                        raise Exception("Unable to retrieve RootDSE information")
                 else:
-                    raise Exception("Impossible de récupérer les informations RootDSE")
+                    result = conn_obj.conn.search_s("", ldap.SCOPE_BASE, "(objectClass=*)")
+                    if result and len(result) > 0:
+                        conn_obj._root_dse_cache = result[0][1]
+                        return conn_obj._root_dse_cache
+                    else:
+                        raise Exception("Impossible de récupérer les informations RootDSE")
             else:
                 if not domain_fqdn:
                     raise ValueError("domain_fqdn requis si aucune connexion active")
@@ -349,6 +378,66 @@ class LdapUtils:
         return root_dse.get('configurationNamingContext', [b''])[0].decode('utf-8')
     
     @staticmethod
+    def _perform_ldap3_search(conn, search_base: str, ldap_filter: str, attributes: List[str]) -> List[Dict[str, Any]]:
+        """
+        Perform LDAP search using ldap3 library.
+        
+        Args:
+            conn: ldap3 Connection object
+            search_base: Search base DN
+            ldap_filter: LDAP filter
+            attributes: List of attributes to retrieve
+            
+        Returns:
+            List of search results in python-ldap compatible format
+        """
+        try:
+            from ldap3 import SUBTREE
+            
+            # Perform search with ldap3
+            conn.search(
+                search_base=search_base,
+                search_filter=ldap_filter,
+                search_scope=SUBTREE,
+                attributes=attributes
+            )
+            
+            # Convert ldap3 results to python-ldap format
+            results = []
+            for entry in conn.entries:
+                attrs = {}
+                for attr_name in attributes:
+                    if hasattr(entry, attr_name):
+                        attr_value = getattr(entry, attr_name)
+                        if hasattr(attr_value, 'value'):
+                            # Get raw value
+                            raw_value = attr_value.value
+                            if isinstance(raw_value, str):
+                                attrs[attr_name] = [raw_value.encode('utf-8')]
+                            elif isinstance(raw_value, bytes):
+                                attrs[attr_name] = [raw_value]
+                            elif isinstance(raw_value, list):
+                                attrs[attr_name] = [v.encode('utf-8') if isinstance(v, str) else v for v in raw_value]
+                            else:
+                                attrs[attr_name] = [str(raw_value).encode('utf-8')]
+                        elif hasattr(attr_value, 'raw_values'):
+                            # Get raw bytes directly
+                            attrs[attr_name] = attr_value.raw_values
+                
+                if attrs:
+                    results.append(attrs)
+            
+            if not results:
+                logger.warning(f"No results found with LDAP filter: {ldap_filter}")
+                return []
+            
+            return results
+            
+        except Exception as ex:
+            logger.error(f"Error during ldap3 search in {search_base}: {ex}")
+            raise
+    
+    @staticmethod
     def _perform_ldap_search(domain_fqdn: str, search_base: str, ldap_filter: str, attributes: List[str]) -> List[Dict[str, Any]]:
         """
         Effectue une recherche LDAP.
@@ -367,6 +456,10 @@ class LdapUtils:
         """
         try:
             conn_obj = LdapUtils._current_connection
+            
+            # Check if using ldap3 for PTH/PTT
+            if conn_obj and hasattr(conn_obj, '_is_ldap3') and conn_obj._is_ldap3:
+                return LdapUtils._perform_ldap3_search(conn_obj.conn, search_base, ldap_filter, attributes)
             
             if conn_obj and conn_obj.conn:
                 conn = conn_obj.conn
