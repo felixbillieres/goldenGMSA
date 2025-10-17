@@ -6,8 +6,8 @@
 
 ```bash
 # Cloner le repository
-git clone <repository-url>
-cd golden_gmsa_python
+git clone https://github.com/felixbillieres/goldenGMSA.git
+cd goldenGMSA/golden_gmsa_python
 
 # Créer un environnement virtuel
 python3 -m venv venv
@@ -43,6 +43,10 @@ Cet outil est destiné uniquement à des fins de **test de pénétration autoris
 ## Licence
 
 MIT License
+
+## Auteur
+
+**Félix Billières (Elliot Belt)**
 
 ## Crédits
 
