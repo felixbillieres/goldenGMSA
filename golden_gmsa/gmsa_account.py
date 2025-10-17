@@ -17,13 +17,13 @@ class GmsaAccount:
     
     # Attributs LDAP requis pour les gMSA
     GMSA_REQUIRED_LDAP_ATTRIBUTES = [
-        "msds-ManagedPasswordID",
-        "samAccountName", 
+        "msDS-ManagedPasswordId",
+        "sAMAccountName", 
         "objectSid",
         "distinguishedName"
     ]
     
-    MSDS_MANAGED_PASSWORD_ID_ATTRIBUTE_NAME = "msds-ManagedPasswordID"
+    MSDS_MANAGED_PASSWORD_ID_ATTRIBUTE_NAME = "msDS-ManagedPasswordId"
     IS_GMSA_ACCOUNT_LDAP_FILTER = "(objectCategory=msDS-GroupManagedServiceAccount)"
     
     def __init__(self, sam_account_name: str, dn: str, sid: str, pwd_id: MsdsManagedPasswordId):
@@ -127,7 +127,7 @@ class GmsaAccount:
         pwd_blob = search_result[GmsaAccount.MSDS_MANAGED_PASSWORD_ID_ATTRIBUTE_NAME][0]
         pwd_id = MsdsManagedPasswordId(pwd_blob)
         sid = search_result['objectSid'][0]
-        sam_id = search_result['samAccountName'][0]
+        sam_id = search_result['sAMAccountName'][0]
         
         return GmsaAccount(sam_id, dn, sid, pwd_id)
     

