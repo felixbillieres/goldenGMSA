@@ -176,6 +176,10 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
                            help='Nom d\'utilisateur (format: user@domain.com ou DOMAIN\\user)')
     auth_group.add_argument('-p', '--password', type=str,
                            help='Mot de passe')
+    auth_group.add_argument('-d', '--domain', type=str,
+                           help='Domaine/DC à interroger')
+    auth_group.add_argument('-f', '--forest', type=str,
+                           help='Forêt à interroger')
     auth_group.add_argument('--dc-ip', type=str,
                            help='Adresse IP du contrôleur de domaine')
     auth_group.add_argument('--use-ssl', action='store_true',
@@ -188,16 +192,12 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
                                        help='Interroger les informations gMSA')
     gmsa_parser.add_argument('-s', '--sid', type=str,
                             help='Le SID du gMSA à interroger')
-    gmsa_parser.add_argument('-d', '--domain', type=str,
-                            help='Domaine/DC à interroger pour l\'objet gMSA')
     
     # Commande kdsinfo
     kds_parser = subparsers.add_parser('kdsinfo',
                                       help='Interroger les informations des clés racine KDS')
     kds_parser.add_argument('-g', '--guid', type=str,
                            help='Le GUID de l\'objet clé racine KDS')
-    kds_parser.add_argument('-f', '--forest', type=str,
-                           help='Forêt/domaine à interroger pour l\'objet clé racine KDS')
     
     # Commande compute
     compute_parser = subparsers.add_parser('compute',
@@ -206,12 +206,8 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
                                help='Le SID du gMSA')
     compute_parser.add_argument('-k', '--kdskey', type=str,
                                help='Clé racine KDS encodée en Base64')
-    compute_parser.add_argument('-p', '--pwdid', type=str,
+    compute_parser.add_argument('--pwdid', type=str,
                                help='Base64 de la valeur de l\'attribut msds-ManagedPasswordID')
-    compute_parser.add_argument('-d', '--domain', type=str,
-                               help='Domaine/DC à interroger pour l\'objet gMSA')
-    compute_parser.add_argument('-f', '--forest', type=str,
-                               help='Forêt/domaine à interroger pour l\'objet clé racine KDS')
     
     args = parser.parse_args()
     
@@ -223,9 +219,7 @@ python main.py compute --sid S-1-5-21-2183999363-403723741-3725858571 \\
         ldap_conn = None
         
         if args.username and args.password:
-            domain = args.domain if hasattr(args, 'domain') and args.domain else None
-            if not domain and hasattr(args, 'forest') and args.forest:
-                domain = args.forest
+            domain = args.domain or args.forest
             if not domain:
                 print("ERREUR: --domain ou --forest requis avec --username")
                 sys.exit(1)
